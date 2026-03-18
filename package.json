@@ -1,7 +1,7 @@
 {
   "name": "minimetro",
   "version": "1.0.0",
-  "description": "��#\u0000 \u0000M\u0000i\u0000n\u0000i\u0000M\u0000e\u0000t\u0000r\u0000o\u0000\r\u0000 \u0000",
+  "description": "Mini Metro game Inspired By Indain Metro lines. from the game Mini Metro by Dinosaur Polo Club",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -5,20 +5,39 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     // stations
-    this.add.circle(200, 300, 15, 0xffffff);
-    this.add.circle(400, 200, 15, 0xffffff);
-    this.add.circle(600, 350, 15, 0xffffff);
+    const stations = [
+      { x: 200, y: 300 },
+      { x: 400, y: 200 },
+      { x: 600, y: 350 },
+      { x: 500, y: 500 }
+    ];
 
-    // train (moving dot)
-    const train = this.add.circle(200, 300, 8, 0xff0000);
-
-    this.tweens.add({
-      targets: train,
-      x: 600,
-      y: 350,
-      duration: 3000,
-      yoyo: true,
-      repeat: -1,
+    // draw stations
+    stations.forEach(s => {
+      this.add.circle(s.x, s.y, 15, 0xffffff);
     });
+
+    // train
+    const train = this.add.circle(200, 300, 8, 0xff0000);
+    train.currentStation = 0;
+
+    // loop through stations
+    this.moveToNext = () => {
+      const next = (train.currentStation + 1) % stations.length;
+
+      this.tweens.add({
+        targets: train,
+        x: stations[next].x,
+        y: stations[next].y,
+        duration: 1000,
+        onComplete: () => {
+          train.currentStation = next;
+          this.moveToNext();
+        }
+      });
+    };
+
+    // start moving
+    this.moveToNext();
   }
 }

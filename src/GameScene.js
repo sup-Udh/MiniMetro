@@ -9,19 +9,16 @@ export default class GameScene extends Phaser.Scene {
   create() {
     this.stations = generateStations();
 
-    // Color definitions
+    // Colors
     this.lineColors = [0xf0cb16, 0xeb2827, 0x019ad1];
 
-    // Graphics for permanent lines
     this.pathGraphics = this.add.graphics({ lineStyle: { width: 4, color: this.lineColors[0] } });
-
-    // Graphics for hover preview
     this.hoverGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0xffc266 } });
 
-    // Line system (IMPORTANT CHANGE)
+    // Line system
     this.lines = [
       {
-        stations: [], // ordered station indices
+        stations: [],
         color: this.lineColors[0]
       }
     ];
@@ -33,14 +30,9 @@ export default class GameScene extends Phaser.Scene {
     this.dragStartIndex = null;
     this.hoverIndex = null;
 
-    const shapes = ['circle', 'rectangle', 'triangle', 'hexagon'];
-
-    
-
-
-    // Create station visuals
+    // Stations
     this.stations.forEach((s, i) => {
-      s.baseColor = 0x000000; // base color (nned to fix later)
+      s.baseColor = 0x000000;
       s.highlightColor = 0xffc266;
       s.visible = false;
 
@@ -59,8 +51,11 @@ export default class GameScene extends Phaser.Scene {
 
     this.input.on("pointerup", () => this.stopDrag());
 
-    // Train setup
-    this.train = this.add.circle(this.stations[0].x, this.stations[0].y, 8, 0xff4d4d).setAlpha(0);
+    // Train
+    this.train = this.add
+      .rectangle(this.stations[0].x, this.stations[0].y, 10, 20, 0xff4d4d)
+      .setOrigin(0.5)
+      .setAlpha(0);
 
     this.train.line = this.currentLine;
     this.train.index = 0;
@@ -68,7 +63,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.isMoving = false;
 
-    // Station spawn system
+    // Station spawning
     this.nextStationIndex = 0;
 
     this.showStation(this.nextStationIndex);
@@ -85,7 +80,7 @@ export default class GameScene extends Phaser.Scene {
       loop: true
     });
 
-    // Passenger spawn system
+    // Passengers
     this.passengers = [];
     this.time.addEvent({
       delay: 20000,
@@ -94,7 +89,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // Show station with animation
   showStation(index) {
     const station = this.stations[index];
     if (!station || station.visible) return;
@@ -118,43 +112,35 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  // =========================
-  // 🧍 PASSENGERS
-  // =========================
+  // ================= PASSENGERS =================
 
   spawnPassenger() {
     const visibleStations = this.stations.filter(s => s.visible);
     if (visibleStations.length < 2) return;
 
-    const origin = visibleStations[Math.floor(Math.random() * visibleStations.length)];
-    let destination = visibleStations[Math.floor(Math.random() * visibleStations.length)];
+    const origin = Phaser.Utils.Array.GetRandom(visibleStations);
+    let destination = Phaser.Utils.Array.GetRandom(visibleStations);
 
-    // Ensure destination is different from origin
     while (destination === origin && visibleStations.length > 1) {
-      destination = visibleStations[Math.floor(Math.random() * visibleStations.length)];
+      destination = Phaser.Utils.Array.GetRandom(visibleStations);
     }
 
     const passenger = new Passenger(this, origin, destination);
     this.passengers.push(passenger);
   }
 
-  // =========================
-  // 🚇 LINE SYSTEM
-  // =========================
+  // ================= LINE SYSTEM =================
 
   addToLine(index) {
     const line = this.currentLine;
 
-    // Prevent duplicate consecutive stations
     if (line.stations.length && line.stations[line.stations.length - 1] === index) {
       return;
     }
 
     line.stations.push(index);
-
     this.drawLines();
 
-    // Start train once we have at least 2 stations
     if (!this.isMoving && line.stations.length >= 2) {
       this.startMoving();
     }
@@ -177,9 +163,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // =========================
-  // 🖱 DRAG SYSTEM
-  // =========================
+  // ================= DRAG SYSTEM =================
 
   startDrag(index) {
     if (!this.stations[index].visible) return;
@@ -198,7 +182,6 @@ export default class GameScene extends Phaser.Scene {
     this.hoverIndex = index;
 
     this.stations[index].circle.setFillStyle(this.stations[index].highlightColor);
-
     this.drawHoverLine(index);
   }
 
@@ -206,7 +189,6 @@ export default class GameScene extends Phaser.Scene {
     if (!this.isDragging) return;
 
     this.stations[index].circle.setFillStyle(this.stations[index].baseColor);
-
     this.hoverGraphics.clear();
     this.hoverIndex = null;
   }
@@ -238,9 +220,7 @@ export default class GameScene extends Phaser.Scene {
     this.hoverGraphics.lineBetween(start.x, start.y, hover.x, hover.y);
   }
 
-  // =========================
-  // 🚆 TRAIN MOVEMENT
-  // =========================
+  // ================= TRAIN MOVEMENT =================
 
   startMoving() {
     this.isMoving = true;
@@ -257,7 +237,6 @@ export default class GameScene extends Phaser.Scene {
 
     let nextIndex = this.train.index + this.train.direction;
 
-    // Reverse at ends (IMPORTANT)
     if (nextIndex >= line.stations.length || nextIndex < 0) {
       this.train.direction *= -1;
       nextIndex = this.train.index + this.train.direction;
@@ -265,6 +244,16 @@ export default class GameScene extends Phaser.Scene {
 
     const nextStationIndex = line.stations[nextIndex];
     const nextStation = this.stations[nextStationIndex];
+
+    // 🔥 ROTATE TRAIN BASED ON DIRECTION
+    const angle = Phaser.Math.Angle.Between(
+      this.train.x,
+      this.train.y,
+      nextStation.x,
+      nextStation.y
+    );
+
+    this.train.setRotation(angle + Math.PI / 2);
 
     this.tweens.add({
       targets: this.train,

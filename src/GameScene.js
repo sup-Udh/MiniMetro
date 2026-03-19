@@ -75,7 +75,7 @@ export default class GameScene extends Phaser.Scene {
     this.nextStationIndex++;
 
     this.time.addEvent({
-      delay: 1000,
+      delay: 1900,
       callback: () => {
         if (this.nextStationIndex < this.stations.length) {
           this.showStation(this.nextStationIndex);
@@ -88,7 +88,7 @@ export default class GameScene extends Phaser.Scene {
     // Passenger spawn system
     this.passengers = [];
     this.time.addEvent({
-      delay: 2000,
+      delay: 20000,
       callback: () => this.spawnPassenger(),
       loop: true
     });

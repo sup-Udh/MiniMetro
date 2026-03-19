@@ -8,17 +8,20 @@ export default class GameScene extends Phaser.Scene {
   create() {
     this.stations = generateStations();
 
+    // Color definitions
+    this.lineColors = [0xf0cb16, 0xeb2827, 0x019ad1];
+
     // Graphics for permanent lines
-    this.pathGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0x00ff00 } });
+    this.pathGraphics = this.add.graphics({ lineStyle: { width: 4, color: this.lineColors[0] } });
 
     // Graphics for hover preview
-    this.hoverGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0x90ee90 } });
+    this.hoverGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0xffc266 } });
 
     // Line system (IMPORTANT CHANGE)
     this.lines = [
       {
         stations: [], // ordered station indices
-        color: 0x00ff00
+        color: this.lineColors[0]
       }
     ];
 
@@ -31,15 +34,17 @@ export default class GameScene extends Phaser.Scene {
 
     // Create station visuals
     this.stations.forEach((s, i) => {
-      s.baseColor = 0xffffff;
-      s.highlightColor = 0x90ee90;
+      s.baseColor = 0x000000;
+      s.highlightColor = 0xffc266;
       s.visible = false;
 
       s.circle = this.add
         .circle(s.x, s.y, 15, s.baseColor)
         .setInteractive({ useHandCursor: true })
         .setAlpha(0)
-        .setScale(0.5);
+        .setScale(0.5)
+        .setStrokeStyle(2, 0xffffff);
+        // i dont want to fill it up can i
 
       s.circle.on("pointerdown", () => this.startDrag(i));
       s.circle.on("pointerover", () => this.onStationHover(i));
@@ -49,7 +54,7 @@ export default class GameScene extends Phaser.Scene {
     this.input.on("pointerup", () => this.stopDrag());
 
     // Train setup
-    this.train = this.add.circle(this.stations[0].x, this.stations[0].y, 8, 0xff0000).setAlpha(0);
+    this.train = this.add.circle(this.stations[0].x, this.stations[0].y, 8, 0xff4d4d).setAlpha(0);
 
     this.train.line = this.currentLine;
     this.train.index = 0;
@@ -126,6 +131,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.lines.forEach(line => {
       if (line.stations.length < 2) return;
+
+      this.pathGraphics.lineStyle(4, line.color);
 
       for (let i = 1; i < line.stations.length; i++) {
         const from = this.stations[line.stations[i - 1]];

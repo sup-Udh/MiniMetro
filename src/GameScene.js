@@ -31,15 +31,63 @@ export default class GameScene extends Phaser.Scene {
     this.hoverIndex = null;
 
     // Stations
-    const shapes = ["circle", "square", "triangle", "diamond", "hexagon", "pentagon", "octagon", "star", "cross"];
-    
+
+  
+
     this.stations.forEach((s, i) => {
       s.baseColor = 0x000000;
       s.highlightColor = 0xffc266;
       s.visible = false;
 
-      s.circle = this.add
-        .circle(s.x, s.y, 15, s.baseColor)
+      // Create visual based on the randomized shape from generateStations
+      let graphic;
+      const size = 15;
+
+      if (s.shape === 'square') {
+        graphic = this.add.rectangle(s.x, s.y, size * 2, size * 2, s.baseColor);
+      } else if (s.shape === 'triangle') {
+        graphic = this.add.triangle(s.x, s.y, s.x, s.y - size, s.x - size, s.y + size, s.x + size, s.y + size, s.baseColor);
+      } else if (s.shape === 'diamond') {
+        graphic = this.add.polygon(s.x, s.y, [0, -size, size, 0, 0, size, -size, 0], s.baseColor);
+      } else if (s.shape === 'hexagon') {
+        const points = [];
+        for (let j = 0; j < 6; j++) {
+          const angle = (j * Math.PI * 2) / 6;
+          points.push(size * Math.cos(angle), size * Math.sin(angle));
+        }
+        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
+      } else if (s.shape === 'pentagon') {
+        const points = [];
+        for (let j = 0; j < 5; j++) {
+          const angle = (j * Math.PI * 2) / 5 - Math.PI / 2;
+          points.push(size * Math.cos(angle), size * Math.sin(angle));
+        }
+        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
+      } else if (s.shape === 'octagon') {
+        const points = [];
+        for (let j = 0; j < 8; j++) {
+          const angle = (j * Math.PI * 2) / 8;
+          points.push(size * Math.cos(angle), size * Math.sin(angle));
+        }
+        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
+      } else if (s.shape === 'star') {
+        const points = [];
+        for (let j = 0; j < 10; j++) {
+          const angle = (j * Math.PI) / 5;
+          const radius = j % 2 === 0 ? size : size * 0.5;
+          points.push(radius * Math.cos(angle), radius * Math.sin(angle));
+        }
+        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
+      } else if (s.shape === 'cross') {
+        graphic = this.add.graphics();
+        graphic.lineStyle(2, s.baseColor);
+        graphic.lineBetween(s.x - size, s.y, s.x + size, s.y);
+        graphic.lineBetween(s.x, s.y - size, s.x, s.y + size);
+      } else {
+        graphic = this.add.circle(s.x, s.y, size, s.baseColor);
+      }
+
+      s.circle = graphic
         .setInteractive({ useHandCursor: true })
         .setAlpha(0)
         .setScale(0.5)

@@ -1,7 +1,7 @@
 // StationGeneration provides helper functions for creating station definitions.
 // This file is intended to be imported by GameScene.
 
-export const SHAPES = ["circle", "square", "triangle", "diamond", "hexagon", "pentagon", "octagon", "star", "cross"];
+export const SHAPES = ["square", "triangle", "diamond", "hexagon", "pentagon", "octagon", "star", "cross"];
 
 export function generateStations() {
   const stations = [];

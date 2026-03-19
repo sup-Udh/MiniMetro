@@ -1,205 +1,195 @@
+import { generateStations } from "./StationGeneration";
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
   }
 
   create() {
-    // station positions
-    this.stations = [
-      { x: 200, y: 300 },
-      { x: 400, y: 200 },
-      { x: 600, y: 350 },
-      { x: 500, y: 500 }
-    ];
+    this.stations = generateStations();
 
-    // graphics for connections
+    // Graphics for permanent lines
     this.pathGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0x00ff00 } });
-    // graphics for hover/drag preview
+
+    // Graphics for hover preview
     this.hoverGraphics = this.add.graphics({ lineStyle: { width: 4, color: 0x90ee90 } });
 
-    // station circles (click or drag to connect)
+    // Line system (IMPORTANT CHANGE)
+    this.lines = [
+      {
+        stations: [], // ordered station indices
+        color: 0x00ff00
+      }
+    ];
+
+    this.currentLine = this.lines[0];
+
+    // Drag system
     this.isDragging = false;
     this.dragStartIndex = null;
     this.hoverIndex = null;
 
+    // Create station visuals
     this.stations.forEach((s, i) => {
-      s.baseColor = 0xffffff; // default color
-      s.highlightColor = 0x90ee90; // light green when being hovered during drag
+      s.baseColor = 0xffffff;
+      s.highlightColor = 0x90ee90;
+      s.visible = false;
 
       s.circle = this.add
         .circle(s.x, s.y, 15, s.baseColor)
-        .setInteractive({ useHandCursor: true });
+        .setInteractive({ useHandCursor: true })
+        .setAlpha(0)
+        .setScale(0.5);
 
       s.circle.on("pointerdown", () => this.startDrag(i));
       s.circle.on("pointerover", () => this.onStationHover(i));
       s.circle.on("pointerout", () => this.onStationOut(i));
     });
 
-    // stop drag when mouse/finger is released
     this.input.on("pointerup", () => this.stopDrag());
 
-    // train starts at first station
-    this.train = this.add.circle(this.stations[0].x, this.stations[0].y, 8, 0xff0000);
-    this.train.currentStation = 0;
+    // Train setup
+    this.train = this.add.circle(this.stations[0].x, this.stations[0].y, 8, 0xff0000).setAlpha(0);
 
-    this.route = [];
-    this.connections = {}; // adjacency list for connected stations (ordered neighbors)
-    this.previousStation = null; // last station the train came from
+    this.train.line = this.currentLine;
+    this.train.index = 0;
+    this.train.direction = 1;
+
     this.isMoving = false;
+
+    // Station spawn system
+    this.nextStationIndex = 0;
+
+    this.showStation(this.nextStationIndex);
+    this.nextStationIndex++;
+
+    this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        if (this.nextStationIndex < this.stations.length) {
+          this.showStation(this.nextStationIndex);
+          this.nextStationIndex++;
+        }
+      },
+      loop: true
+    });
   }
 
-  // Called whenever the player clicks a station circle.
-  // `index` is the station position in `this.stations`.
-  onStationClick(index) {
-    // Ignore if the player clicks the same station twice in a row.
-    if (this.route.length && this.route[this.route.length - 1] === index) {
+  // Show station with animation
+  showStation(index) {
+    const station = this.stations[index];
+    if (!station || station.visible) return;
+
+    station.visible = true;
+
+    this.tweens.add({
+      targets: station.circle,
+      alpha: 1,
+      scale: 1,
+      duration: 500,
+      ease: "Back.easeOut"
+    });
+
+    if (index === 0) {
+      this.tweens.add({
+        targets: this.train,
+        alpha: 1,
+        duration: 500
+      });
+    }
+  }
+
+  // =========================
+  // 🚇 LINE SYSTEM
+  // =========================
+
+  addToLine(index) {
+    const line = this.currentLine;
+
+    // Prevent duplicate consecutive stations
+    if (line.stations.length && line.stations[line.stations.length - 1] === index) {
       return;
     }
 
-    // Add the clicked station to the end of the route and redraw the visual line.
-    if (this.route.length) {
-      const last = this.route[this.route.length - 1];
-      this.connectStations(last, index);
-    }
+    line.stations.push(index);
 
-    this.route.push(index);
-    this.drawRoute();
+    this.drawLines();
 
-    // Start train movement once we have at least one connection.
-    if (!this.isMoving && this.route.length >= 2) {
+    // Start train once we have at least 2 stations
+    if (!this.isMoving && line.stations.length >= 2) {
       this.startMoving();
     }
   }
 
-  // Add a bidirectional connection (edge) between two stations.
-  // Neighbors are stored in insertion order so traversal can cycle through them.
-  connectStations(a, b) {
-    if (!this.connections[a]) {
-      this.connections[a] = [];
-    }
-    if (!this.connections[b]) {
-      this.connections[b] = [];
-    }
+  drawLines() {
+    this.pathGraphics.clear();
 
-    if (!this.connections[a].includes(b)) {
-      this.connections[a].push(b);
-    }
-    if (!this.connections[b].includes(a)) {
-      this.connections[b].push(a);
-    }
+    this.lines.forEach(line => {
+      if (line.stations.length < 2) return;
+
+      for (let i = 1; i < line.stations.length; i++) {
+        const from = this.stations[line.stations[i - 1]];
+        const to = this.stations[line.stations[i]];
+
+        this.pathGraphics.lineBetween(from.x, from.y, to.x, to.y);
+      }
+    });
   }
 
-  // Called on pointer down: begin a drag operation starting from `index`.
+  // =========================
+  // 🖱 DRAG SYSTEM
+  // =========================
+
   startDrag(index) {
+    if (!this.stations[index].visible) return;
+
     this.isDragging = true;
     this.dragStartIndex = index;
-    this.hoverIndex = null;
 
-    // Also treat it as a click so the station gets added to the route immediately.
-    this.onStationClick(index);
+    this.addToLine(index);
   }
 
-  // Highlight station while dragging over it and draw preview line.
   onStationHover(index) {
-    if (!this.isDragging) {
-      return;
-    }
-
-    // Avoid highlighting the station we started from.
-    if (index === this.dragStartIndex) {
-      return;
-    }
-
-    if (this.hoverIndex !== null && this.hoverIndex !== index) {
-      this.stations[this.hoverIndex].circle.setFillStyle(this.stations[this.hoverIndex].baseColor);
-    }
+    if (!this.isDragging) return;
+    if (!this.stations[index].visible) return;
+    if (index === this.dragStartIndex) return;
 
     this.hoverIndex = index;
+
     this.stations[index].circle.setFillStyle(this.stations[index].highlightColor);
 
-    // Draw the preview line to show where the route will connect.
     this.drawHoverLine(index);
   }
 
-  // Remove highlight and preview line when the pointer leaves a station.
   onStationOut(index) {
-    if (!this.isDragging) {
-      return;
-    }
+    if (!this.isDragging) return;
 
-    if (this.hoverIndex === index) {
-      this.stations[index].circle.setFillStyle(this.stations[index].baseColor);
-      this.hoverIndex = null;
-      this.hoverGraphics.clear();
-    }
+    this.stations[index].circle.setFillStyle(this.stations[index].baseColor);
+
+    this.hoverGraphics.clear();
+    this.hoverIndex = null;
   }
 
-  // Finish a drag. If the pointer was released over another station,
-  // connect the two stations (build the graph) and start movement.
   stopDrag() {
-    if (!this.isDragging) {
-      return;
+    if (!this.isDragging) return;
+
+    if (this.hoverIndex !== null) {
+      this.addToLine(this.hoverIndex);
     }
 
-    if (this.hoverIndex !== null && this.hoverIndex !== this.dragStartIndex) {
-      // Ensure the route includes the start station.
-      if (!this.route.length) {
-        this.route.push(this.dragStartIndex);
-      } else if (this.route[this.route.length - 1] !== this.dragStartIndex) {
-        this.route.push(this.dragStartIndex);
-      }
-
-      // Connect the stations in the adjacency map and update the visual route.
-      this.connectStations(this.dragStartIndex, this.hoverIndex);
-      this.onStationClick(this.hoverIndex);
-    }
-
-    // Reset hover line and highlight states.
     this.hoverGraphics.clear();
 
     if (this.hoverIndex !== null) {
       this.stations[this.hoverIndex].circle.setFillStyle(this.stations[this.hoverIndex].baseColor);
-      this.hoverIndex = null;
-    }
-
-    if (this.dragStartIndex !== null) {
-      this.stations[this.dragStartIndex].circle.setFillStyle(this.stations[this.dragStartIndex].baseColor);
-      this.dragStartIndex = null;
     }
 
     this.isDragging = false;
+    this.dragStartIndex = null;
+    this.hoverIndex = null;
   }
 
-  // Draws the current route as a green line between the stations in `this.route`.
-  drawRoute() {
-    this.pathGraphics.clear(); // remove previous lines before drawing the new route
-
-    if (this.route.length < 2) {
-      return; // nothing to draw until we have at least two stations
-    }
-
-    // Draw each segment: route[0] -> route[1], route[1] -> route[2], ...
-    for (let i = 1; i < this.route.length; i += 1) {
-      const from = this.stations[this.route[i - 1]];
-      const to = this.stations[this.route[i]];
-      this.pathGraphics.lineBetween(from.x, from.y, to.x, to.y);
-    }
-  }
-
-  // Start moving the train along connected stations.
-  startMoving() {
-    this.isMoving = true; // prevent starting again while already moving
-    this.previousStation = null; // reset direction
-    this.moveAlongRoute();
-  }
-
-  // Draw a preview line while dragging from the start station to `hoverIndex`.
   drawHoverLine(hoverIndex) {
     this.hoverGraphics.clear();
-
-    if (!this.isDragging || this.dragStartIndex === null) {
-      return;
-    }
 
     const start = this.stations[this.dragStartIndex];
     const hover = this.stations[hoverIndex];
@@ -207,42 +197,43 @@ export default class GameScene extends Phaser.Scene {
     this.hoverGraphics.lineBetween(start.x, start.y, hover.x, hover.y);
   }
 
-  // Move the train along connected stations (graph traversal).
-  moveAlongRoute() {
-    const current = this.train.currentStation;
-    const neighbors = this.connections[current];
+  // =========================
+  // 🚆 TRAIN MOVEMENT
+  // =========================
 
-    if (!neighbors || neighbors.length === 0) {
+  startMoving() {
+    this.isMoving = true;
+    this.moveTrain();
+  }
+
+  moveTrain() {
+    const line = this.train.line;
+
+    if (!line || line.stations.length < 2) {
       this.isMoving = false;
       return;
     }
 
-    // Find index of the station we came from in the neighbor list.
-    const lastIndex = this.previousStation !== null ? neighbors.indexOf(this.previousStation) : -1;
+    let nextIndex = this.train.index + this.train.direction;
 
-    // Choose next neighbor in order (wraps around).
-    let nextIndex = (lastIndex + 1) % neighbors.length;
-    let next = neighbors[nextIndex];
-
-    // If we haven't moved yet and lastIndex is -1, just take the first neighbor.
-    if (lastIndex === -1) {
-      next = neighbors[0];
-      nextIndex = 0;
+    // Reverse at ends (IMPORTANT)
+    if (nextIndex >= line.stations.length || nextIndex < 0) {
+      this.train.direction *= -1;
+      nextIndex = this.train.index + this.train.direction;
     }
 
-    const nextStation = this.stations[next];
+    const nextStationIndex = line.stations[nextIndex];
+    const nextStation = this.stations[nextStationIndex];
 
     this.tweens.add({
       targets: this.train,
       x: nextStation.x,
       y: nextStation.y,
-      duration: 1500,
+      duration: 1000,
       onComplete: () => {
-        this.previousStation = current;
-        this.train.currentStation = next;
-        this.moveAlongRoute();
+        this.train.index = nextIndex;
+        this.moveTrain();
       }
     });
   }
 }
-

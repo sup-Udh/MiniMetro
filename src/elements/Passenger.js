@@ -14,7 +14,7 @@ export default class Passenger {
     const offsetY = Phaser.Math.Between(-10, 10);
 
     this.sprite = scene.add
-      .circle(originStation.x + offsetX, originStation.y + offsetY, 6, 0xffffff)
+      .circle(originStation.x + offsetX, originStation.y + offsetY, 4, 0xffffff)
       .setStrokeStyle(1, 0x000000)
       .setDepth(5);
 
@@ -26,6 +26,32 @@ export default class Passenger {
   boardTrain() {
     this.isOnTrain = true;
     this.sprite.setVisible(false);
+  }
+
+  // Plays a small “boarding” animation from current position into the train.
+  animateBoarding(train, onComplete) {
+    if (!this.sprite) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    this.isOnTrain = true;
+
+    const targetX = train.x;
+    const targetY = train.y;
+
+    this.scene.tweens.add({
+      targets: this.sprite,
+      x: targetX,
+      y: targetY,
+      scale: 0.2,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => {
+        this.sprite.setVisible(false);
+        if (onComplete) onComplete();
+      }
+    });
   }
 
   // Called when the passenger reaches their destination.

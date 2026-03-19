@@ -57,6 +57,9 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
 
+    // Pause duration at a station (ms)
+    this.stationStopDuration = 800;
+
     this.train.line = this.currentLine;
     this.train.index = 0;
     this.train.direction = 1;
@@ -80,10 +83,13 @@ export default class GameScene extends Phaser.Scene {
       loop: true
     });
 
-    // Passengers
+    // ================= PASSENGERS SPAWN RATIO ================= ////////////////////////////////////
+
+
+    
     this.passengers = [];
     this.time.addEvent({
-      delay: 20000,
+      delay: 1000,
       callback: () => this.spawnPassenger(),
       loop: true
     });
@@ -253,7 +259,7 @@ export default class GameScene extends Phaser.Scene {
       nextStation.y
     );
 
-    this.train.setRotation(angle + Math.PI / 2);
+    this.train.setRotation(angle + Math.PI / 2); // rotate train accordignly to the lines.
 
     this.tweens.add({
       targets: this.train,
@@ -262,8 +268,35 @@ export default class GameScene extends Phaser.Scene {
       duration: 1000,
       onComplete: () => {
         this.train.index = nextIndex;
-        this.moveTrain();
+        this.onTrainArrivedAtStation(nextStationIndex);
       }
     });
+  }
+
+  onTrainArrivedAtStation(stationIndex) {
+    const station = this.stations[stationIndex];
+
+    // Pick up up to 4 waiting passengers at this station
+    const waitingPassengers = this.passengers
+      .filter(p => !p.isOnTrain && p.origin === station && !p.isDelivered)
+      .slice(0, 4);
+
+    const continueMoving = () => {
+      this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
+    };
+
+    if (waitingPassengers.length > 0) {
+      let remaining = waitingPassengers.length;
+      const onBoarded = () => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          continueMoving();
+        }
+      };
+
+      waitingPassengers.forEach(p => p.animateBoarding(this.train, onBoarded));
+    } else {
+      continueMoving();
+    }
   }
 }

@@ -2,12 +2,34 @@
 // This file is intended to be imported by GameScene.
 
 export function generateStations() {
-  // Define station locations here with random shapes.
-  const shapes = ['circle', 'rectangle', 'triangle'];
-  return [
-    { x: 200, y: 300, shape: shapes[Math.floor(Math.random() * shapes.length)] },
-    { x: 400, y: 200, shape: shapes[Math.floor(Math.random() * shapes.length)] },
-    { x: 600, y: 350, shape: shapes[Math.floor(Math.random() * shapes.length)] },
-    { x: 500, y: 500, shape: shapes[Math.floor(Math.random() * shapes.length)] }
-  ];
+  const stations = [];
+  const minDistance = 80; // Minimum distance between stations to prevent overlap
+  
+  while (stations.length < 10) {
+    const newStation = {
+      x: Math.random() * 700 + 50,
+      y: Math.random() * 500 + 50
+    };
+    
+    // Check if this station is far enough from all existing stations
+    let isTooClose = false;
+    for (let station of stations) {
+      const distance = Math.sqrt(
+        Math.pow(newStation.x - station.x, 2) + 
+        Math.pow(newStation.y - station.y, 2)
+      );
+      
+      if (distance < minDistance) {
+        isTooClose = true;
+        break;
+      }
+    }
+    
+    // Only add station if it's not too close to others
+    if (!isTooClose) {
+      stations.push(newStation);
+    }
+  }
+  
+  return stations;
 }

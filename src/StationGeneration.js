@@ -2,12 +2,12 @@
 // This file is intended to be imported by GameScene.
 
 export function generateStations() {
-  // Define station locations here.
-  // You can change these coordinates to whatever arrangement you want.
+  // Define station locations here with random shapes.
+  const shapes = ['circle', 'rectangle', 'triangle'];
   return [
-    { x: 200, y: 300 },
-    { x: 400, y: 200 },
-    { x: 600, y: 350 },
-    { x: 500, y: 500 }
+    { x: 200, y: 300, shape: shapes[Math.floor(Math.random() * shapes.length)] },
+    { x: 400, y: 200, shape: shapes[Math.floor(Math.random() * shapes.length)] },
+    { x: 600, y: 350, shape: shapes[Math.floor(Math.random() * shapes.length)] },
+    { x: 500, y: 500, shape: shapes[Math.floor(Math.random() * shapes.length)] }
   ];
 }

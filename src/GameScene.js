@@ -32,9 +32,12 @@ export default class GameScene extends Phaser.Scene {
     this.dragStartIndex = null;
     this.hoverIndex = null;
 
+    const shapes = ['circle', 'rectangle', 'triangle', 'hexagon'];
+
+
     // Create station visuals
     this.stations.forEach((s, i) => {
-      s.baseColor = 0x000000;
+      s.baseColor = 0x000000; // base color (nned to fix later)
       s.highlightColor = 0xffc266;
       s.visible = false;
 
@@ -43,8 +46,8 @@ export default class GameScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true })
         .setAlpha(0)
         .setScale(0.5)
-        .setStrokeStyle(2, 0xffffff);
-        // i dont want to fill it up can i
+        .setStrokeStyle(2, 0xffffff)
+        .setFillStyle(0x000000, 0);
 
       s.circle.on("pointerdown", () => this.startDrag(i));
       s.circle.on("pointerover", () => this.onStationHover(i));

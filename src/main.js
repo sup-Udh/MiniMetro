@@ -7,6 +7,10 @@ const config = {
   height: window.innerHeight,
   backgroundColor: "#f5f3ed",
   scene: [GameScene],
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  }
 };
 
 new Phaser.Game(config);

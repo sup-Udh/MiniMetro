@@ -34,6 +34,8 @@ export default class GameScene extends Phaser.Scene {
 
     const shapes = ['circle', 'rectangle', 'triangle', 'hexagon'];
 
+    
+
 
     // Create station visuals
     this.stations.forEach((s, i) => {

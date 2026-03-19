@@ -4,11 +4,12 @@
 export function generateStations() {
   const stations = [];
   const minDistance = 80; // Minimum distance between stations to prevent overlap
+  const margin = 50; // Margin from screen edges
   
   while (stations.length < 10) {
     const newStation = {
-      x: Math.random() * 700 + 50,
-      y: Math.random() * 500 + 50
+      x: Math.random() * (window.innerWidth - margin * 2) + margin,
+      y: Math.random() * (window.innerHeight - margin * 2) + margin
     };
     
     // Check if this station is far enough from all existing stations

@@ -31,6 +31,8 @@ export default class GameScene extends Phaser.Scene {
     this.hoverIndex = null;
 
     // Stations
+    const shapes = ["circle", "square", "triangle", "diamond", "hexagon", "pentagon", "octagon", "star", "cross"];
+    
     this.stations.forEach((s, i) => {
       s.baseColor = 0x000000;
       s.highlightColor = 0xffc266;
@@ -56,6 +58,10 @@ export default class GameScene extends Phaser.Scene {
       .rectangle(this.stations[0].x, this.stations[0].y, 10, 20, 0xff4d4d)
       .setOrigin(0.5)
       .setAlpha(0);
+
+    // Train capacity (how many passengers it can carry at once)
+    this.train.capacity = 4;
+    this.train.onboard = [];
 
     // Pause duration at a station (ms)
     this.stationStopDuration = 800;
@@ -89,7 +95,7 @@ export default class GameScene extends Phaser.Scene {
     
     this.passengers = [];
     this.time.addEvent({
-      delay: 1000,
+      delay: 10000,  // how often a passenger is generated.
       callback: () => this.spawnPassenger(),
       loop: true
     });
@@ -276,10 +282,15 @@ export default class GameScene extends Phaser.Scene {
   onTrainArrivedAtStation(stationIndex) {
     const station = this.stations[stationIndex];
 
-    // Pick up up to 4 waiting passengers at this station
+    // Determine how many more passengers the train can take
+    const availableSlots = Math.max(0, this.train.capacity - this.train.onboard.length);
+    if (availableSlots <= 0) {
+      return this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
+    }
+
     const waitingPassengers = this.passengers
       .filter(p => !p.isOnTrain && p.origin === station && !p.isDelivered)
-      .slice(0, 4);
+      .slice(0, availableSlots);
 
     const continueMoving = () => {
       this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
@@ -287,14 +298,17 @@ export default class GameScene extends Phaser.Scene {
 
     if (waitingPassengers.length > 0) {
       let remaining = waitingPassengers.length;
-      const onBoarded = () => {
+      const onBoarded = passenger => {
+        // Track onboard passengers for capacity enforcement
+        this.train.onboard.push(passenger);
+
         remaining -= 1;
         if (remaining <= 0) {
           continueMoving();
         }
       };
 
-      waitingPassengers.forEach(p => p.animateBoarding(this.train, onBoarded));
+      waitingPassengers.forEach(p => p.animateBoarding(this.train, () => onBoarded(p)));
     } else {
       continueMoving();
     }

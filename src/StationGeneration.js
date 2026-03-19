@@ -1,6 +1,8 @@
 // StationGeneration provides helper functions for creating station definitions.
 // This file is intended to be imported by GameScene.
 
+export const SHAPES = ["circle", "square", "triangle", "diamond", "hexagon", "pentagon", "octagon", "star", "cross"];
+
 export function generateStations() {
   const stations = [];
   const minDistance = 80; // Minimum distance between stations to prevent overlap
@@ -9,7 +11,8 @@ export function generateStations() {
   while (stations.length < 5) {
     const newStation = {
       x: Math.random() * (window.innerWidth - margin * 2) + margin,
-      y: Math.random() * (window.innerHeight - margin * 2) + margin
+      y: Math.random() * (window.innerHeight - margin * 2) + margin,
+      shape: SHAPES[Math.floor(Math.random() * SHAPES.length)]
     };
     
     // Check if this station is far enough from all existing stations

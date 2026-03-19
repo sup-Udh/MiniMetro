@@ -1,4 +1,5 @@
 import { generateStations } from "./StationGeneration";
+import Passenger from "./elements/Passenger";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -49,7 +50,7 @@ export default class GameScene extends Phaser.Scene {
         .setAlpha(0)
         .setScale(0.5)
         .setStrokeStyle(2, 0xffffff)
-        .setFillStyle(0x000000, 0);
+        .setFillStyle(0x000000);
 
       s.circle.on("pointerdown", () => this.startDrag(i));
       s.circle.on("pointerover", () => this.onStationHover(i));
@@ -83,6 +84,14 @@ export default class GameScene extends Phaser.Scene {
       },
       loop: true
     });
+
+    // Passenger spawn system
+    this.passengers = [];
+    this.time.addEvent({
+      delay: 2000,
+      callback: () => this.spawnPassenger(),
+      loop: true
+    });
   }
 
   // Show station with animation
@@ -107,6 +116,26 @@ export default class GameScene extends Phaser.Scene {
         duration: 500
       });
     }
+  }
+
+  // =========================
+  // 🧍 PASSENGERS
+  // =========================
+
+  spawnPassenger() {
+    const visibleStations = this.stations.filter(s => s.visible);
+    if (visibleStations.length < 2) return;
+
+    const origin = visibleStations[Math.floor(Math.random() * visibleStations.length)];
+    let destination = visibleStations[Math.floor(Math.random() * visibleStations.length)];
+
+    // Ensure destination is different from origin
+    while (destination === origin && visibleStations.length > 1) {
+      destination = visibleStations[Math.floor(Math.random() * visibleStations.length)];
+    }
+
+    const passenger = new Passenger(this, origin, destination);
+    this.passengers.push(passenger);
   }
 
   // =========================

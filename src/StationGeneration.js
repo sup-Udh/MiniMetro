@@ -6,7 +6,7 @@ export function generateStations() {
   const minDistance = 80; // Minimum distance between stations to prevent overlap
   const margin = 50; // Margin from screen edges
   
-  while (stations.length < 10) {
+  while (stations.length < 5) {
     const newStation = {
       x: Math.random() * (window.innerWidth - margin * 2) + margin,
       y: Math.random() * (window.innerHeight - margin * 2) + margin

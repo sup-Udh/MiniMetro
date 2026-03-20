@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { generateShape } from "../StationGeneration";
 
 // Represents a single passenger waiting at a station.
 // Passengers have an origin station and a destination station.
@@ -8,15 +9,20 @@ export default class Passenger {
     this.scene = scene;
     this.origin = originStation;
     this.destination = destinationStation;
+    this.shape = originStation.shape;
 
     // A small visual marker at (or near) the origin station.
     const offsetX = Phaser.Math.Between(-10, 10);
     const offsetY = Phaser.Math.Between(-10, 10);
 
-    this.sprite = scene.add
-      .circle(originStation.x + offsetX, originStation.y + offsetY, 4, 0xffffff)
-      .setStrokeStyle(1, 0x000000)
-      .setDepth(5);
+    this.sprite = generateShape(
+      scene,
+      originStation.x + offsetX,
+      originStation.y + offsetY,
+      6,
+      this.shape,
+      0xffffff
+    ).setDepth(5);
 
     this.isOnTrain = false;
     this.isDelivered = false;
@@ -49,6 +55,27 @@ export default class Passenger {
       duration: 500,
       onComplete: () => {
         this.sprite.setVisible(false);
+        if (onComplete) onComplete();
+      }
+    });
+  }
+
+  animateDelivery(station, onComplete) {
+    if (!this.sprite) {
+      this.deliver();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    this.scene.tweens.add({
+      targets: this.sprite,
+      x: station.x,
+      y: station.y,
+      scale: 0.2,
+      alpha: 0,
+      duration: 600,
+      onComplete: () => {
+        this.deliver();
         if (onComplete) onComplete();
       }
     });

@@ -1,4 +1,4 @@
-import { generateStations } from "./StationGeneration";
+import { generateStations, generateShape, SHAPES } from "./StationGeneration";
 import Passenger from "./elements/Passenger";
 
 export default class GameScene extends Phaser.Scene {
@@ -31,72 +31,19 @@ export default class GameScene extends Phaser.Scene {
     this.hoverIndex = null;
 
     // Stations
-
-  
-
     this.stations.forEach((s, i) => {
       s.baseColor = 0x000000;
       s.highlightColor = 0xffc266;
       s.visible = false;
 
-      // Create visual based on the randomized shape from generateStations
-      let graphic;
-      const size = 15;
-
-      if (s.shape === 'square') {
-        graphic = this.add.rectangle(s.x, s.y, size * 2, size * 2, s.baseColor);
-      } else if (s.shape === 'triangle') {
-        graphic = this.add.triangle(s.x, s.y, s.x, s.y - size, s.x - size, s.y + size, s.x + size, s.y + size, s.baseColor);
-      } else if (s.shape === 'diamond') {
-        graphic = this.add.polygon(s.x, s.y, [0, -size, size, 0, 0, size, -size, 0], s.baseColor);
-      } else if (s.shape === 'hexagon') {
-        const points = [];
-        for (let j = 0; j < 6; j++) {
-          const angle = (j * Math.PI * 2) / 6;
-          points.push(size * Math.cos(angle), size * Math.sin(angle));
-        }
-        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
-      } else if (s.shape === 'pentagon') {
-        const points = [];
-        for (let j = 0; j < 5; j++) {
-          const angle = (j * Math.PI * 2) / 5 - Math.PI / 2;
-          points.push(size * Math.cos(angle), size * Math.sin(angle));
-        }
-        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
-      } else if (s.shape === 'octagon') {
-        const points = [];
-        for (let j = 0; j < 8; j++) {
-          const angle = (j * Math.PI * 2) / 8;
-          points.push(size * Math.cos(angle), size * Math.sin(angle));
-        }
-        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
-      } else if (s.shape === 'star') {
-        const points = [];
-        for (let j = 0; j < 10; j++) {
-          const angle = (j * Math.PI) / 5;
-          const radius = j % 2 === 0 ? size : size * 0.5;
-          points.push(radius * Math.cos(angle), radius * Math.sin(angle));
-        }
-        graphic = this.add.polygon(s.x, s.y, points, s.baseColor);
-      } else if (s.shape === 'cross') {
-        graphic = this.add.graphics();
-        graphic.lineStyle(2, s.baseColor);
-        graphic.lineBetween(s.x - size, s.y, s.x + size, s.y);
-        graphic.lineBetween(s.x, s.y - size, s.x, s.y + size);
-      } else {
-        graphic = this.add.circle(s.x, s.y, size, s.baseColor);
-      }
-
-      s.circle = graphic
-        .setInteractive({ useHandCursor: true })
+      s.graphic = generateShape(this, s.x, s.y, 15, s.shape, s.baseColor)
+        .setInteractive(new Phaser.Geom.Circle(s.x, s.y, 15), Phaser.Geom.Circle.Contains)
         .setAlpha(0)
-        .setScale(0.5)
-        .setStrokeStyle(2, 0xffffff)
-        .setFillStyle(0x000000);
+        .setScale(0.5);
 
-      s.circle.on("pointerdown", () => this.startDrag(i));
-      s.circle.on("pointerover", () => this.onStationHover(i));
-      s.circle.on("pointerout", () => this.onStationOut(i));
+      s.graphic.on("pointerdown", () => this.startDrag(i));
+      s.graphic.on("pointerover", () => this.onStationHover(i));
+      s.graphic.on("pointerout", () => this.onStationOut(i));
     });
 
     this.input.on("pointerup", () => this.stopDrag());
@@ -156,7 +103,7 @@ export default class GameScene extends Phaser.Scene {
     station.visible = true;
 
     this.tweens.add({
-      targets: station.circle,
+      targets: station.graphic,
       alpha: 1,
       scale: 1,
       duration: 500,
@@ -241,14 +188,14 @@ export default class GameScene extends Phaser.Scene {
 
     this.hoverIndex = index;
 
-    this.stations[index].circle.setFillStyle(this.stations[index].highlightColor);
+    this.stations[index].graphic.setTint(this.stations[index].highlightColor);
     this.drawHoverLine(index);
   }
 
   onStationOut(index) {
     if (!this.isDragging) return;
 
-    this.stations[index].circle.setFillStyle(this.stations[index].baseColor);
+    this.stations[index].graphic.clearTint();
     this.hoverGraphics.clear();
     this.hoverIndex = null;
   }
@@ -263,7 +210,7 @@ export default class GameScene extends Phaser.Scene {
     this.hoverGraphics.clear();
 
     if (this.hoverIndex !== null) {
-      this.stations[this.hoverIndex].circle.setFillStyle(this.stations[this.hoverIndex].baseColor);
+      this.stations[this.hoverIndex].graphic.clearTint();
     }
 
     this.isDragging = false;
@@ -330,35 +277,60 @@ export default class GameScene extends Phaser.Scene {
   onTrainArrivedAtStation(stationIndex) {
     const station = this.stations[stationIndex];
 
-    // Determine how many more passengers the train can take
+    // First, deliver passengers whose shape matches this station.
+    const passengersToDeliver = this.train.onboard.filter(p => p.shape === station.shape);
+
+    const continueAfterDelivery = () => {
+      // Then board new passengers from this station.
+      this.boardPassengersAtStation(station, () => {
+        this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
+      });
+    };
+
+    if (passengersToDeliver.length > 0) {
+      let remaining = passengersToDeliver.length;
+
+      const onDelivered = () => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          this.train.onboard = this.train.onboard.filter(p => !p.isDelivered);
+          this.passengers = this.passengers.filter(p => !p.isDelivered);
+          continueAfterDelivery();
+        }
+      };
+
+      passengersToDeliver.forEach(p => p.animateDelivery(station, onDelivered));
+    } else {
+      continueAfterDelivery();
+    }
+  }
+
+  boardPassengersAtStation(station, onComplete) {
     const availableSlots = Math.max(0, this.train.capacity - this.train.onboard.length);
     if (availableSlots <= 0) {
-      return this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
+      onComplete();
+      return;
     }
 
     const waitingPassengers = this.passengers
       .filter(p => !p.isOnTrain && p.origin === station && !p.isDelivered)
       .slice(0, availableSlots);
 
-    const continueMoving = () => {
-      this.time.delayedCall(this.stationStopDuration, () => this.moveTrain());
-    };
-
     if (waitingPassengers.length > 0) {
       let remaining = waitingPassengers.length;
+
       const onBoarded = passenger => {
-        // Track onboard passengers for capacity enforcement
         this.train.onboard.push(passenger);
 
         remaining -= 1;
         if (remaining <= 0) {
-          continueMoving();
+          onComplete();
         }
       };
 
       waitingPassengers.forEach(p => p.animateBoarding(this.train, () => onBoarded(p)));
     } else {
-      continueMoving();
+      onComplete();
     }
   }
 }

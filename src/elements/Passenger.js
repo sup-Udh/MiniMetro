@@ -1,9 +1,6 @@
 import Phaser from "phaser";
 import { generateShape } from "../StationGeneration";
 
-// Represents a single passenger waiting at a station.
-// Passengers have an origin station and a destination station.
-// They can board a train, be delivered, and be removed from the scene.
 export default class Passenger {
   constructor(scene, originStation, destinationStation) {
     this.scene = scene;
@@ -11,7 +8,20 @@ export default class Passenger {
     this.destination = destinationStation;
     this.shape = originStation.shape;
 
-    // A small visual marker at (or near) the origin station.
+    const passengerColors = {
+      square: 0xff0000,
+      triangle: 0x00ff00,
+      diamond: 0x0000ff,
+      hexagon: 0xff00ff,
+      pentagon: 0x00ffff,
+      octagon: 0xffff00,
+      star: 0xffa500,
+      cross: 0x800080,
+      circle: 0xffffff
+    };
+
+    const color = passengerColors[this.shape] ?? 0xffffff;
+
     const offsetX = Phaser.Math.Between(-10, 10);
     const offsetY = Phaser.Math.Between(-10, 10);
 
@@ -21,27 +31,27 @@ export default class Passenger {
       originStation.y + offsetY,
       6,
       this.shape,
-      0xffffff
+      color
     ).setDepth(5);
 
     this.isOnTrain = false;
     this.isDelivered = false;
+    this.isAnimating = false;
   }
 
-  // Called when a train picks up this passenger.
   boardTrain() {
     this.isOnTrain = true;
-    this.sprite.setVisible(false);
   }
 
-  // Plays a small “boarding” animation from current position into the train.
+  // 🔥 FIXED: boarding respects rotation
   animateBoarding(train, onComplete) {
     if (!this.sprite) {
+      this.isOnTrain = true;
       if (onComplete) onComplete();
       return;
     }
 
-    this.isOnTrain = true;
+    const angle = train.rotation;
 
     const targetX = train.x;
     const targetY = train.y;
@@ -50,22 +60,25 @@ export default class Passenger {
       targets: this.sprite,
       x: targetX,
       y: targetY,
-      scale: 0.2,
-      alpha: 0,
-      duration: 500,
+      scale: 0.5,
+      alpha: 1,
+      duration: 400,
+      ease: "Power2",
       onComplete: () => {
-        this.sprite.setVisible(false);
+        this.boardTrain();
         if (onComplete) onComplete();
       }
     });
   }
 
   animateDelivery(station, onComplete) {
-    if (!this.sprite) {
+    if (!this.sprite || this.isAnimating) {
       this.deliver();
       if (onComplete) onComplete();
       return;
     }
+
+    this.isAnimating = true;
 
     this.scene.tweens.add({
       targets: this.sprite,
@@ -75,13 +88,13 @@ export default class Passenger {
       alpha: 0,
       duration: 600,
       onComplete: () => {
+        this.isAnimating = false;
         this.deliver();
         if (onComplete) onComplete();
       }
     });
   }
 
-  // Called when the passenger reaches their destination.
   deliver() {
     this.isDelivered = true;
     if (this.sprite && this.sprite.destroy) {
@@ -89,10 +102,28 @@ export default class Passenger {
     }
   }
 
-  // If you want the passenger to move with the train, call this each frame.
-  setPosition(x, y) {
-    if (this.sprite && this.isOnTrain) {
-      this.sprite.setPosition(x, y);
-    }
+  // 🔥 CORE FIX: rotated offsets
+  updateOnTrain(train, index) {
+    if (!this.isOnTrain || !this.sprite) return;
+
+    this.sprite.setVisible(true);
+    this.sprite.setAlpha(1);
+    this.sprite.setScale(0.5);
+    this.sprite.setDepth(10);
+
+    // Arrange passengers in grid inside train
+    const offsetX = (index % 2 === 0 ? -6 : 6);
+    const offsetY = Math.floor(index / 2) * 6 - 4;
+
+    const angle = train.rotation;
+
+    // Rotate offsets with train
+    const rotatedX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle);
+    const rotatedY = offsetX * Math.sin(angle) + offsetY * Math.cos(angle);
+
+    this.sprite.setPosition(train.x + rotatedX, train.y + rotatedY);
+
+    // Optional: rotate passenger too
+    this.sprite.setRotation(angle);
   }
 }

@@ -253,14 +253,14 @@ export default class GameScene extends Phaser.Scene {
     const nextStation = this.stations[nextStationIndex];
 
     // 🔥 ROTATE TRAIN BASED ON DIRECTION
-    const angle = Phaser.Math.Angle.Between(
-      this.train.x,
-      this.train.y,
-      nextStation.x,
-      nextStation.y
-    );
+   const angle = Phaser.Math.Angle.Between(
+  this.train.x,
+  this.train.y,
+  nextStation.x,
+  nextStation.y
+);
 
-    this.train.setRotation(angle + Math.PI / 2); // rotate train accordignly to the lines.
+this.train.setRotation(angle + Math.PI / 2); // rotate train accordignly to the lines.
 
     this.tweens.add({
       targets: this.train,
@@ -331,6 +331,14 @@ export default class GameScene extends Phaser.Scene {
       waitingPassengers.forEach(p => p.animateBoarding(this.train, () => onBoarded(p)));
     } else {
       onComplete();
+    }
+  }
+
+  update() {
+    if (this.train && Array.isArray(this.train.onboard)) {
+      this.train.onboard.forEach((passenger, index) => {
+        passenger.updateOnTrain(this.train, index);
+      });
     }
   }
 }
